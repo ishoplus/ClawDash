@@ -4,6 +4,7 @@ import path from 'path';
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB limit for preview
 
+// 驗證路徑（內聯以避免模組路徑問題）
 function validateWorkspacePath(
   userPath: string,
   agentId: string,
