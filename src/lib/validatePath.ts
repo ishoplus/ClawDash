@@ -18,15 +18,13 @@ export function validateWorkspacePath(
   // Normalize the user-provided path
   const normalizedPath = normalize(userPath);
   
-  // Handle absolute paths - extract the relative portion from workspace
+  // Handle absolute paths - treat as relative to workspace
   if (normalizedPath.startsWith('/')) {
-    // If it's an absolute path within the workspace, extract relative portion
+    // If it starts with workspace base, extract relative portion
     if (normalizedPath.startsWith(expectedBase)) {
-      // Extract relative path from the workspace base
       const relativePath = normalizedPath.slice(expectedBase.length);
       const trimmedRelative = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
       
-      // Parse the relative path
       const pathParts = trimmedRelative.split(sep);
       if (pathParts.some(part => part === '..' || part === '.')) {
         return { 
@@ -39,11 +37,29 @@ export function validateWorkspacePath(
       return { valid: true, resolvedPath };
     }
     
-    // Absolute path outside workspace - reject
-    return { 
-      valid: false, 
-      error: 'Absolute paths must be within the workspace directory.' 
-    };
+    // Path starts with / but not in workspace - treat as relative
+    // Remove leading slash and process as relative path
+    const trimmedRelative = normalizedPath.slice(1);
+    
+    const pathParts = trimmedRelative.split(sep);
+    if (pathParts.some(part => part === '..' || part === '.')) {
+      return { 
+        valid: false, 
+        error: 'Path traversal characters (.. or .) are not allowed.' 
+      };
+    }
+    
+    const resolvedPath = join(expectedBase, trimmedRelative);
+    
+    // Verify it's still within workspace
+    if (!resolvedPath.startsWith(expectedBase)) {
+      return { 
+        valid: false, 
+        error: 'Access outside workspace is not permitted.' 
+      };
+    }
+    
+    return { valid: true, resolvedPath };
   }
   
   // Check for path traversal attempts (going up directories)
