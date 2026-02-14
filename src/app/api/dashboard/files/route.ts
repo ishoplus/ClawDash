@@ -12,22 +12,25 @@ export async function GET(request: Request) {
     const agentId = searchParams.get('agent') || 'code';
     const pathParam = searchParams.get('path') || '';
 
-    // Use default workspace path if no path provided
-    const userPath = pathParam || `/Users/showang/.openclaw/workspaces/${agentId}/`;
-    
-    // Validate the path to prevent directory traversal attacks
-    // Use userPath so empty path gets default workspace validated
-    const validation = validateWorkspacePath(userPath, agentId);
-    
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error || 'Invalid path' },
-        { status: 400 }
-      );
-    }
+    // Default workspace path for this agent
+    const defaultPath = `/Users/showang/.openclaw/workspaces/${agentId}/`;
 
-    // Use validated path or default workspace
-    const validatedPath = validation.resolvedPath || userPath;
+    // If no path or root path, use default
+    let validatedPath: string;
+    if (!pathParam || pathParam === '/' || pathParam === '') {
+      validatedPath = defaultPath;
+    } else {
+      // Validate the path to prevent directory traversal attacks
+      const validation = validateWorkspacePath(pathParam, agentId);
+      
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: validation.error || 'Invalid path' },
+          { status: 400 }
+        );
+      }
+      validatedPath = validation.resolvedPath || defaultPath;
+    }
 
     // Use ls to get directory contents
     const { stdout } = await execAsync(`ls -la "${validatedPath}"`);

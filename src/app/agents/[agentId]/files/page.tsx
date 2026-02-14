@@ -23,14 +23,15 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
     async function fetchFiles() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/dashboard/files?agent=${agentId}&path=${currentPath}`);
+        // 使用預設路徑（根目錄）
+        const url = `/api/dashboard/files?agent=${agentId}`;
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          // API 返回 type: "file" 或 "dir"，需要轉換為前端格式
           setFiles((data.files || []).map((f: any, idx: number) => ({
             id: idx,
             name: f.name,
-            path: f.type === 'dir' ? `${currentPath}/${f.name}`.replace(/\/+/, '/') : f.path || `${currentPath}/${f.name}`,
+            path: f.type === 'dir' ? `/${f.name}` : f.path || `/${f.name}`,
             type: f.type === 'dir' ? 'directory' : 'file',
             size: f.size,
             modified: f.modified
@@ -44,7 +45,15 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
       }
     }
     fetchFiles();
-  }, [agentId, currentPath]);
+  }, [agentId]);
+
+  const navigateToFolder = (folderName: string) => {
+    const newPath = currentPath === '/' 
+      ? `/${folderName}` 
+      : `${currentPath}/${folderName}`.replace(/\/+/g, '/');
+    setCurrentPath(newPath);
+    // 這裡應該重新獲取該目錄的內容
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -77,10 +86,10 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
               </button>
               <button
                 onClick={() => {
-                  const parts = currentPath.split('/');
-                  if (parts.length > 1) {
+                  const parts = currentPath.split('/').filter(Boolean);
+                  if (parts.length > 0) {
                     parts.pop();
-                    setCurrentPath(parts.join('/') || '/');
+                    setCurrentPath('/' + parts.join('/'));
                   }
                 }}
                 disabled={currentPath === '/'}
@@ -101,35 +110,42 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
             </div>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {files.map((file) => (
-                <div
-                  key={file.path}
-                  className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                  onClick={() => {
-                    if (file.type === 'directory') {
-                      setCurrentPath(file.path);
-                    }
-                  }}
-                >
-                  <span className="text-2xl mr-4">
-                    {file.type === 'directory' ? '📁' : '📄'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {file.type === 'directory' ? '資料夾' : `${(file.size || 0).toLocaleString()} bytes`}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-400 mr-3">
-                    {file.modified}
-                  </span>
-                  <span className="text-sm text-gray-400">
-                    →
-                  </span>
+              {files.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
+                  <span className="text-4xl mb-4">📁</span>
+                  <p>此目錄為空</p>
                 </div>
-              ))}
+              ) : (
+                files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      if (file.type === 'directory') {
+                        navigateToFolder(file.name);
+                      }
+                    }}
+                  >
+                    <span className="text-2xl mr-4">
+                      {file.type === 'directory' ? '📁' : '📄'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {file.type === 'directory' ? '資料夾' : `${(file.size || 0).toLocaleString()} bytes`}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 mr-3">
+                      {file.modified}
+                    </span>
+                    <span className="text-sm text-gray-400">
+                      →
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
