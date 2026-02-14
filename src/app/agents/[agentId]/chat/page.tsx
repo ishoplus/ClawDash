@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { AgentSelector } from '@/components/agents/AgentSelector';
 
@@ -9,6 +9,18 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  tokens?: { input?: number; output?: number };
+}
+
+interface SessionSummary {
+  key: string;
+  sessionId: string;
+  updatedAt: string;
+  channel: string;
+  lastTo: string;
+  messageCount: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export default function AgentChatPage({ params }: { params: Promise<{ agentId: string }> }) {
@@ -17,10 +29,61 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 載入會話列表
+  useEffect(() => {
+    async function fetchSessions() {
+      try {
+        const res = await fetch(`/api/dashboard/history?agent=${agentId}`);
+        const data = await res.json();
+        setSessions(data.sessions || []);
+      } catch (e) {
+        console.error('Failed to fetch sessions:', e);
+      }
+    }
+    fetchSessions();
+  }, [agentId]);
+
+  // 選擇會話
+  const selectSession = async (key: string) => {
+    setSessionKey(key);
+    await fetchMessages(key);
+  };
+
+  // 載入會話訊息
+  async function fetchMessages(key: string) {
+    try {
+      const res = await fetch(`/api/dashboard/history?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (data.messages) {
+        setMessages(data.messages.map((m: any, idx: number) => ({
+          id: m.timestamp?.toString() || idx.toString(),
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString(),
+          tokens: m.tokens
+        })));
+      }
+    } catch (e) {
+      console.error('Failed to fetch messages:', e);
+    }
+  }
 
   // 連接 WebSocket
   useEffect(() => {
+    if (!sessionKey) return;
+
+    // 關閉舊連接
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+
     const ws = new WebSocket(`ws://localhost:18789/ws/${agentId}`);
+    wsRef.current = ws;
     
     ws.onopen = () => {
       setConnected(true);
@@ -44,11 +107,25 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
     
     ws.onclose = () => setConnected(false);
     
-    return () => ws.close();
-  }, [agentId]);
+    return () => {
+      ws.close();
+    };
+  }, [agentId, sessionKey]);
+
+  // 滾動到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // 選擇第一個會話
+  useEffect(() => {
+    if (sessions.length > 0 && !sessionKey) {
+      selectSession(sessions[0].key);
+    }
+  }, [sessions]);
 
   const sendMessage = async () => {
-    if (!input.trim() || sending) return;
+    if (!input.trim() || sending || !sessionKey) return;
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -61,88 +138,146 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
     setInput('');
     setSending(true);
     
-    // 模擬發送（實際會透過 WebSocket）
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/dashboard/sessions/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionKey, message: input })
+      });
+      
+      if (response.ok) {
+        // 訊息已發送，WebSocket 會收到回覆
+      } else {
+        const error = await response.json();
+        console.error('Send error:', error);
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      }
+    } catch (error) {
+      console.error('Send error:', error);
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+    } finally {
       setSending(false);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `收到訊息：${input}`,
-        timestamp: new Date().toISOString()
-      }]);
-    }, 1000);
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 86400000) {
+      return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    } else if (diff < 172800000) {
+      return '昨天';
+    } else {
+      return date.toLocaleDateString('zh-TW');
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Navigation />
       
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        {/* 頁面標題與 Agent 選擇器 */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              💬 與 {agentId} 對話
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2 mt-1">
-              <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-              {connected ? '已連線' : '未連線'}
-            </p>
-          </div>
-          <AgentSelector variant="dropdown" />
-        </div>
-
-        {/* 對話區域 */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-          {/* 訊息列表 */}
-          <div className="h-[60vh] overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                <span className="text-4xl mb-4">💬</span>
-                <p>開始與 AI 助手對話吧！</p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      msg.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="flex gap-6 h-[calc(100vh-140px)]">
+          {/* 左側會話列表 */}
+          <div className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-bold text-gray-900 dark:text-white">對話紀錄</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {sessions.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                  尚無對話
+                </div>
+              ) : (
+                sessions.map((session) => (
+                  <button
+                    key={session.key}
+                    onClick={() => selectSession(session.key)}
+                    className={`w-full text-left p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                      sessionKey === session.key ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''
                     }`}
                   >
-                    <p className="text-sm">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'}`}>
-                      {new Date(msg.timestamp).toLocaleTimeString('zh-TW')}
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {session.key.split(':').pop() || 'main'}
                     </p>
-                  </div>
-                </div>
-              ))
-            )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {session.messageCount} 則訊息
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
 
-          {/* 輸入區域 */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="輸入訊息..."
-                disabled={sending}
-                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={sending || !input.trim()}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl font-medium transition-colors"
-              >
-                {sending ? '...' : '發送'}
-              </button>
+          {/* 右側對話區域 */}
+          <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+            {/* 標題欄 */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <h2 className="font-bold text-gray-900 dark:text-white">
+                  {agentId}
+                </h2>
+                <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {connected ? '已連線' : '未連線'}
+                </span>
+              </div>
+              <AgentSelector variant="minimal" />
+            </div>
+
+            {/* 訊息列表 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                  <span className="text-4xl mb-4">💬</span>
+                  <p>開始與 AI 助手對話吧！</p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
+                        msg.role === 'user'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'}`}>
+                        {formatTime(msg.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* 輸入區域 */}
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="輸入訊息..."
+                  disabled={sending}
+                  className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={sending || !input.trim()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl font-medium transition-colors"
+                >
+                  {sending ? '...' : '發送'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
