@@ -5,6 +5,7 @@ import { Navigation } from '@/components/layout/Navigation';
 import { AgentSelector } from '@/components/agents/AgentSelector';
 
 interface WorkspaceFile {
+  id: number;
   name: string;
   path: string;
   type: 'file' | 'directory';
@@ -25,10 +26,11 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
         const res = await fetch(`/api/dashboard/files?agent=${agentId}&path=${currentPath}`);
         if (res.ok) {
           const data = await res.json();
-          // API 返回 files 陣列，每個項目有 name, type, size, modified
-          setFiles((data.files || []).map((f: any) => ({
+          // API 返回 type: "file" 或 "dir"，需要轉換為前端格式
+          setFiles((data.files || []).map((f: any, idx: number) => ({
+            id: idx,
             name: f.name,
-            path: f.type === 'dir' ? `${currentPath}/${f.name}`.replace(/\/+/, '/') : f.path,
+            path: f.type === 'dir' ? `${currentPath}/${f.name}`.replace(/\/+/, '/') : f.path || `${currentPath}/${f.name}`,
             type: f.type === 'dir' ? 'directory' : 'file',
             size: f.size,
             modified: f.modified
@@ -36,6 +38,7 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
         }
       } catch (e) {
         console.error('Failed to fetch files:', e);
+        setFiles([]);
       } finally {
         setLoading(false);
       }
