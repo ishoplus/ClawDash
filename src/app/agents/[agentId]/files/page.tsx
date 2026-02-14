@@ -20,20 +20,22 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
 
   useEffect(() => {
     async function fetchFiles() {
+      setLoading(true);
       try {
         const res = await fetch(`/api/dashboard/files?agent=${agentId}&path=${currentPath}`);
         if (res.ok) {
           const data = await res.json();
-          setFiles(data.files || []);
+          // API 返回 files 陣列，每個項目有 name, type, size, modified
+          setFiles((data.files || []).map((f: any) => ({
+            name: f.name,
+            path: f.type === 'dir' ? `${currentPath}/${f.name}`.replace(/\/+/, '/') : f.path,
+            type: f.type === 'dir' ? 'directory' : 'file',
+            size: f.size,
+            modified: f.modified
+          })));
         }
       } catch (e) {
         console.error('Failed to fetch files:', e);
-        // 模擬資料
-        setFiles([
-          { name: 'src', path: '/src', type: 'directory' },
-          { name: 'package.json', path: '/package.json', type: 'file', size: 1024, modified: new Date().toISOString() },
-          { name: 'README.md', path: '/README.md', type: 'file', size: 2048, modified: new Date().toISOString() },
-        ]);
       } finally {
         setLoading(false);
       }
@@ -117,6 +119,9 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
                       {file.type === 'directory' ? '資料夾' : `${(file.size || 0).toLocaleString()} bytes`}
                     </p>
                   </div>
+                  <span className="text-xs text-gray-400 mr-3">
+                    {file.modified}
+                  </span>
                   <span className="text-sm text-gray-400">
                     →
                   </span>

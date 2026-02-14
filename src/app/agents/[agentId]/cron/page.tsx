@@ -10,8 +10,7 @@ interface CronJob {
   schedule: string;
   command: string;
   enabled: boolean;
-  lastRun?: string;
-  nextRun?: string;
+  sessionTarget?: string;
 }
 
 export default function AgentCronPage({ params }: { params: Promise<{ agentId: string }> }) {
@@ -21,6 +20,7 @@ export default function AgentCronPage({ params }: { params: Promise<{ agentId: s
 
   useEffect(() => {
     async function fetchCronJobs() {
+      setLoading(true);
       try {
         const res = await fetch(`/api/dashboard/cron?agent=${agentId}`);
         if (res.ok) {
@@ -29,12 +29,6 @@ export default function AgentCronPage({ params }: { params: Promise<{ agentId: s
         }
       } catch (e) {
         console.error('Failed to fetch cron jobs:', e);
-        // 模擬資料
-        setJobs([
-          { id: '1', name: '每日備份', schedule: '0 2 * * *', command: 'backup.sh', enabled: true },
-          { id: '2', name: '清理日誌', schedule: '0 3 * * 0', command: 'cleanup.sh', enabled: false },
-          { id: '3', name: '健康檢查', schedule: '*/5 * * * *', command: 'healthcheck.sh', enabled: true },
-        ]);
       } finally {
         setLoading(false);
       }
@@ -121,7 +115,7 @@ export default function AgentCronPage({ params }: { params: Promise<{ agentId: s
                       <div className="flex items-center gap-3">
                         {job.enabled && (
                           <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">
-                            下次執行: {job.nextRun || '未知'}
+                            已啟用
                           </span>
                         )}
                         <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
