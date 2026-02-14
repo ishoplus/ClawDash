@@ -50,16 +50,21 @@ export function AgentSelector({ variant = 'dropdown', showAllOption = false, onS
     fetchAgents();
   }, []);
 
-  // 選擇 agent
+  // 選擇 agent - 保持當前頁面類型
   const handleSelect = (agentId: string) => {
     setSelectedAgent(agentId);
     onSelect?.(agentId);
     
     if (agentId === 'all') {
       router.push('/');
-    } else {
-      router.push(`/agents/${agentId}/chat`);
+      return;
     }
+
+    // 從當前路徑提取頁面類型 (chat, history, files, cron)
+    const pageMatch = pathname.match(/\/agents\/[^\/]+\/([a-z]+)$/);
+    const pageType = pageMatch ? pageMatch[1] : 'chat';
+    
+    router.push(`/agents/${agentId}/${pageType}`);
   };
 
   if (loading) {
