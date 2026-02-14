@@ -19,29 +19,49 @@ export async function GET(request: Request) {
       console.error('Error listing cron jobs:', stderr);
     }
 
-    let cronJobs = [];
+    let cronData;
     try {
-      cronJobs = JSON.parse(stdout || '[]');
+      cronData = JSON.parse(stdout || '{}');
     } catch {
-      // 如果不是 JSON 格式，嘗試解析舊格式
-      cronJobs = [];
+      cronData = { jobs: [] };
     }
 
-    // 過濾出指定 agent 的 cron jobs
-    const agentJobs = cronJobs.filter((job: any) => 
-      !agentId || job.sessionTarget === agentId || job.sessionTarget === `agent:${agentId}`
-    );
+    const cronJobs = cronData.jobs || [];
+    
+    // 過濾出指定 agent 的 cron jobs (不區分大小寫)
+    const agentLower = agentId.toLowerCase();
+    const agentJobs = cronJobs.filter((job: any) => {
+      const target = (job.sessionTarget || '').toLowerCase();
+      return target === agentLower || target === `agent:${agentLower}`;
+    });
 
-    return NextResponse.json({ jobs: agentJobs.length > 0 ? agentJobs : cronJobs });
+    // 如果沒有找到指定 agent 的 jobs，返回全部
+    const resultJobs = agentJobs.length > 0 ? agentJobs : cronJobs;
+
+    // 格式化返回數據
+    const formattedJobs = resultJobs.map((job: any) => ({
+      id: job.id,
+      name: job.name || '未命名任務',
+      schedule: job.schedule?.expr || job.schedule || '無',
+      command: job.payload?.message?.substring(0, 50) + '...' || 'Agent Task',
+      enabled: job.enabled,
+      sessionTarget: job.sessionTarget,
+      nextRun: job.state?.nextRunAtMs 
+        ? new Date(job.state.nextRunAtMs).toLocaleString('zh-TW')
+        : undefined,
+      lastRun: job.state?.lastRunAtMs
+        ? new Date(job.state.lastRunAtMs).toLocaleString('zh-TW')
+        : undefined,
+      description: job.description
+    }));
+
+    return NextResponse.json({ jobs: formattedJobs });
   } catch (error) {
     console.error('Error fetching cron jobs:', error);
-    // 返回模擬數據以便測試
-    return NextResponse.json({
-      jobs: [
-        { id: '1', name: '每日備份', schedule: '0 2 * * *', command: 'backup.sh', enabled: true, sessionTarget: 'code' },
-        { id: '2', name: '清理日誌', schedule: '0 3 * * 0', command: 'cleanup.sh', enabled: false, sessionTarget: 'code' },
-        { id: '3', name: '健康檢查', schedule: '*/5 * * * *', command: 'healthcheck.sh', enabled: true, sessionTarget: 'code' },
-      ]
+    // 沒有模擬數據，直接返回錯誤
+    return NextResponse.json({ 
+      jobs: [],
+      error: '無法獲取排程任務，請確認 OpenClaw CLI 是否可用'
     });
   }
 }
@@ -54,17 +74,11 @@ export async function PATCH(request: Request) {
     const action = searchParams.get('action'); // 'enable' or 'disable'
 
     if (!jobId) {
-      return NextResponse.json(
-        { error: 'Job ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Job ID is required' }, { status: 400 });
     }
 
     if (!action || !['enable', 'disable'].includes(action)) {
-      return NextResponse.json(
-        { error: 'Invalid action. Use "enable" or "disable"' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     // Execute OpenClaw CLI to enable/disable cron job
@@ -74,10 +88,7 @@ export async function PATCH(request: Request) {
 
     if (stderr && !stderr.includes('warning')) {
       console.error(`Error ${action}ing cron job:`, stderr);
-      return NextResponse.json(
-        { error: `Failed to ${action} cron job` },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: `Failed to ${action} cron job` }, { status: 500 });
     }
 
     return NextResponse.json({ 
@@ -86,9 +97,6 @@ export async function PATCH(request: Request) {
     });
   } catch (error) {
     console.error(`Error enabling/disabling cron job:`, error);
-    return NextResponse.json(
-      { error: 'Failed to update cron job' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to update cron job' }, { status: 500 });
   }
 }
