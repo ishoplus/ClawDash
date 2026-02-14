@@ -3,6 +3,8 @@
 import { useEffect, useState, use } from 'react';
 import { Navigation } from '@/components/layout/Navigation';
 import { AgentSelector } from '@/components/agents/AgentSelector';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface WorkspaceFile {
   id: number;
@@ -31,7 +33,16 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
 
   // 獲取目錄內容
   useEffect(() => {
-    async function fetchFiles() {
+    interface FileItem {
+  id: number;
+  name: string;
+  path: string;
+  type: 'directory' | 'file';
+  size?: number;
+  modified?: string;
+}
+
+async function fetchFiles() {
       setLoading(true);
       try {
         const pathParam = currentPath.length > 0 ? `/${currentPath.join('/')}` : '';
@@ -39,7 +50,7 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          setFiles((data.files || []).map((f: any, idx: number) => ({
+          setFiles((data.files || []).map((f: { name: string; type: string; size?: number; modified?: string; path?: string }, idx: number) => ({
             id: idx,
             name: f.name,
             path: f.type === 'dir' ? `/${f.name}` : f.path || `/${f.name}`,
@@ -156,9 +167,17 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
                   <p>{previewFile.error}</p>
                 </div>
               ) : previewFile.content ? (
-                <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-auto">
-                  {previewFile.content}
-                </pre>
+                <div className="markdown-preview">
+                  {previewFile.name.endsWith('.md') ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {previewFile.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <pre className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-auto">
+                      {previewFile.content}
+                    </pre>
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4">📄</span>

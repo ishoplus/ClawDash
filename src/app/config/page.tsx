@@ -31,6 +31,40 @@ interface Provider {
   models: string[];
 }
 
+interface SkillsData {
+  stats?: {
+    total?: number;
+    enabled?: number;
+  };
+  skills?: Array<{
+    name: string;
+    enabled: boolean;
+    riskLevel?: string;
+  }>;
+  categorized?: {
+    all?: Array<{
+      name: string;
+      enabled: boolean;
+      riskLevel?: string;
+    }>;
+    high?: Array<{
+      name: string;
+      enabled: boolean;
+      riskLevel?: string;
+    }>;
+    medium?: Array<{
+      name: string;
+      enabled: boolean;
+      riskLevel?: string;
+    }>;
+    low?: Array<{
+      name: string;
+      enabled: boolean;
+      riskLevel?: string;
+    }>;
+  };
+}
+
 const PROVIDERS: Provider[] = [
   { id: 'anthropic', name: 'Anthropic (Claude)', icon: '🤖', models: ['claude-sonnet-4', 'claude-haiku-3'] },
   { id: 'openai', name: 'OpenAI (GPT)', icon: '🟢', models: ['gpt-4o', 'gpt-4o-mini'] },
@@ -41,7 +75,17 @@ const CHANNELS = [
   { id: 'telegram', name: 'Telegram', icon: '✈️', color: 'bg-blue-500', help: 'telegramTokenHelp' },
   { id: 'whatsapp', name: 'WhatsApp', icon: '💬', color: 'bg-green-500', help: 'whatsappTokenHelp' },
   { id: 'discord', name: 'Discord', icon: '🎮', color: 'bg-indigo-500', help: 'discordTokenHelp' },
-];
+] as const;
+
+type ChannelId = typeof CHANNELS[number]['id'];
+
+interface Channel {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  help: string;
+}
 
 export default function ConfigPage() {
   const { t } = useI18n();
@@ -57,7 +101,7 @@ export default function ConfigPage() {
   const [channelToken, setChannelToken] = useState('');
   const [selectedChannel, setSelectedChannel] = useState('');
   const [savingChannel, setSavingChannel] = useState(false);
-  const [skillsData, setSkillsData] = useState<any>(null);
+  const [skillsData, setSkillsData] = useState<SkillsData | null>(null);
   const [loadingSkills, setLoadingSkills] = useState(false);
   const [selectedRiskTab, setSelectedRiskTab] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [savingSkills, setSavingSkills] = useState(false);
@@ -363,7 +407,7 @@ export default function ConfigPage() {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.key
                   ? 'bg-blue-600 text-white'
@@ -717,7 +761,7 @@ export default function ConfigPage() {
                               </button>
 
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                💡 {t(channel.help as any)}
+                                💡 {t(channel.help)}
                               </p>
                             </div>
                           ) : (
@@ -840,10 +884,10 @@ export default function ConfigPage() {
                 { key: 'high', label: 'High Risk', icon: '🔴', color: 'text-red-600' },
                 { key: 'medium', label: 'Medium Risk', icon: '🟡', color: 'text-yellow-600' },
                 { key: 'low', label: 'Low Risk', icon: '🟢', color: 'text-green-600' },
-              ].map((tab) => (
+              ].map((tab: { key: string; label: string; icon: string; color?: string }) => (
                 <button
                   key={tab.key}
-                  onClick={() => setSelectedRiskTab(tab.key as any)}
+                  onClick={() => setSelectedRiskTab(tab.key as 'all' | 'high' | 'medium' | 'low')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     selectedRiskTab === tab.key
                       ? 'bg-blue-600 text-white'
@@ -866,7 +910,7 @@ export default function ConfigPage() {
               <div className="space-y-3">
                 {skillsData?.categorized && (
                   <>
-                    {(selectedRiskTab === 'all' ? skillsData.skills : skillsData.categorized[selectedRiskTab] || []).map((skill: any) => (
+                    {(selectedRiskTab === 'all' ? skillsData.skills : skillsData.categorized?.[selectedRiskTab] || []).map((skill) => (
                       <div
                         key={skill.name}
                         className={`border-2 rounded-lg p-4 ${

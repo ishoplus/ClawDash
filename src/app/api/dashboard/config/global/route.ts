@@ -20,7 +20,7 @@ interface OpenClawConfig {
     port?: number;
     autoStart?: boolean;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // 讀取統一配置

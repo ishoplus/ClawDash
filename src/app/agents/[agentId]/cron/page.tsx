@@ -16,6 +16,12 @@ interface CronJob {
   description?: string;
 }
 
+interface Tab {
+  key: 'all' | 'enabled' | 'disabled';
+  label: string;
+  count: number;
+}
+
 export default function AgentCronPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
   const [jobs, setJobs] = useState<CronJob[]>([]);
@@ -98,7 +104,7 @@ export default function AgentCronPage({ params }: { params: Promise<{ agentId: s
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setFilter(tab.key as any)}
+              onClick={() => setFilter(tab.key as 'all' | 'enabled' | 'disabled')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 filter === tab.key
                   ? 'bg-blue-600 text-white'

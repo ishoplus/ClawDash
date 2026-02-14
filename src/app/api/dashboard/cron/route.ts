@@ -4,6 +4,30 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface CronJob {
+  id: string;
+  name?: string;
+  schedule?: { expr?: string } | string;
+  payload?: { message?: string };
+  enabled?: boolean;
+  sessionTarget?: string;
+  state?: {
+    nextRunAtMs?: number;
+    lastRunAtMs?: number;
+  };
+  description?: string;
+}
+
+function getScheduleString(schedule: CronJob['schedule']): string {
+  if (!schedule) return '無';
+  if (typeof schedule === 'string') return schedule;
+  return schedule.expr || '無';
+}
+
+interface CronData {
+  jobs: CronJob[];
+}
+
 // Get cron jobs for a specific agent
 export async function GET(request: Request) {
   try {
@@ -19,7 +43,7 @@ export async function GET(request: Request) {
       console.error('Error listing cron jobs:', stderr);
     }
 
-    let cronData;
+    let cronData: CronData;
     try {
       cronData = JSON.parse(stdout || '{}');
     } catch {
@@ -30,7 +54,7 @@ export async function GET(request: Request) {
     
     // 過濾出指定 agent 的 cron jobs (不區分大小寫)
     const agentLower = agentId.toLowerCase();
-    const agentJobs = cronJobs.filter((job: any) => {
+    const agentJobs = cronJobs.filter((job: CronJob) => {
       const target = (job.sessionTarget || '').toLowerCase();
       return target === agentLower || target === `agent:${agentLower}`;
     });
@@ -39,10 +63,10 @@ export async function GET(request: Request) {
     const resultJobs = agentJobs.length > 0 ? agentJobs : cronJobs;
 
     // 格式化返回數據
-    const formattedJobs = resultJobs.map((job: any) => ({
+    const formattedJobs = resultJobs.map((job: CronJob) => ({
       id: job.id,
       name: job.name || '未命名任務',
-      schedule: job.schedule?.expr || job.schedule || '無',
+      schedule: getScheduleString(job.schedule),
       command: job.payload?.message?.substring(0, 50) + '...' || 'Agent Task',
       enabled: job.enabled,
       sessionTarget: job.sessionTarget,

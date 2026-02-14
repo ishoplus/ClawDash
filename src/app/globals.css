@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,7 +22,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Toast animation */
@@ -39,4 +41,217 @@ body {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+/* GitHub-style Markdown Preview */
+.markdown-preview {
+  --md-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --md-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --md-bg: #ffffff;
+  --md-fg: #1f2328;
+  --md-fg-muted: #656d76;
+  --md-border: #d0d7de;
+  --md-code-bg: #f6f8fa;
+  --md-pre-bg: #f6f8fa;
+  --md-link: #0969da;
+  --mdblockquote-border: #d0d7de;
+  --mdblockquote-bg: transparent;
+}
+
+.dark .markdown-preview {
+  --md-bg: #0d1117;
+  --md-fg: #c9d1d9;
+  --md-fg-muted: #8b949e;
+  --md-border: #30363d;
+  --md-code-bg: #161b22;
+  --md-pre-bg: #161b22;
+  --md-link: #58a6ff;
+  --mdblockquote-border: #30363d;
+}
+
+.markdown-preview {
+  font-family: var(--md-font-family);
+  line-height: 1.5;
+  color: var(--md-fg);
+}
+
+.markdown-preview body {
+  background-color: var(--md-bg);
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-preview h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--md-border);
+}
+
+.markdown-preview h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--md-border);
+}
+
+.markdown-preview h3 {
+  font-size: 1.25em;
+}
+
+.markdown-preview h4 {
+  font-size: 1em;
+}
+
+.markdown-preview p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-preview a {
+  color: var(--md-link);
+  text-decoration: none;
+}
+
+.markdown-preview a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+  list-style-position: outside;
+}
+
+.markdown-preview ul {
+  list-style-type: disc;
+}
+
+.markdown-preview ol {
+  list-style-type: decimal;
+}
+
+.markdown-preview li {
+  margin-top: 0.25em;
+}
+
+.markdown-preview li + li {
+  margin-top: 0.25em;
+}
+
+.markdown-preview code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--md-code-bg);
+  border-radius: 6px;
+  font-family: var(--md-font-mono);
+}
+
+.markdown-preview pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--md-pre-bg);
+  border-radius: 6px;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-preview pre code {
+  padding: 0;
+  background-color: transparent;
+  font-size: 100%;
+}
+
+.markdown-preview blockquote {
+  padding: 0 1em;
+  color: var(--md-fg-muted);
+  border-left: 0.25em solid var(--mdblockquote-border);
+  margin: 0 0 16px 0;
+}
+
+.markdown-preview hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: var(--md-border);
+  border: 0;
+}
+
+.markdown-preview table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-preview table th,
+.markdown-preview table td {
+  padding: 6px 13px;
+  border: 1px solid var(--md-border);
+}
+
+.markdown-preview table th {
+  font-weight: 600;
+  background-color: var(--md-code-bg);
+}
+
+.markdown-preview table tr {
+  background-color: var(--md-bg);
+  border-top: 1px solid var(--md-border);
+}
+
+.markdown-preview table tr:nth-child(2n) {
+  background-color: var(--md-code-bg);
+}
+
+.markdown-preview img {
+  max-width: 100%;
+  box-sizing: content-box;
+  background-color: var(--md-bg);
+}
+
+.markdown-preview strong {
+  font-weight: 600;
+}
+
+.markdown-preview em {
+  font-style: italic;
+}
+
+/* Ensure inline code and pre work well in any container */
+.bg-white .markdown-preview {
+  --md-bg: #ffffff;
+  --md-fg: #1f2328;
+  --md-fg-muted: #656d76;
+  --md-border: #d0d7de;
+  --md-code-bg: #f6f8fa;
+  --md-pre-bg: #f6f8fa;
+  --md-link: #0969da;
+}
+
+.dark .bg-gray-800 .markdown-preview,
+.bg-gray-800 .markdown-preview {
+  --md-bg: #0d1117;
+  --md-fg: #c9d1d9;
+  --md-fg-muted: #8b949e;
+  --md-border: #30363d;
+  --md-code-bg: #161b22;
+  --md-pre-bg: #161b22;
+  --md-link: #58a6ff;
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useI18n } from '@/lib/i18n-context';
 
 export function LanguageSwitcher() {
-  const { locale, setLocale, availableLocales, t } = useI18n();
+  const { locale, setLocale, availableLocales } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
 
   const localeNames: Record<string, string> = {

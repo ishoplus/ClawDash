@@ -11,9 +11,6 @@ export function Navigation() {
   const pathname = usePathname();
   const { t, locale } = useI18n();
 
-  // 檢查是否在 Agent 專屬頁面
-  const isAgentPage = pathname.startsWith('/agents/');
-
   // 全局頁面（無需選擇 Agent）
   const globalNavItems = [
     { key: 'dashboard', href: '/', icon: '📊' },

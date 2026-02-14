@@ -6,6 +6,29 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+interface SessionContentBlock {
+  type: string;
+  text?: string;
+}
+
+interface SessionMessageEntry {
+  message?: {
+    role: string;
+    content?: string | SessionContentBlock[] | { text?: string };
+    timestamp?: string;
+  };
+  timestamp?: string;
+  tokens?: { input?: number; output?: number };
+}
+
+interface SessionInfo {
+  sessionFile?: string;
+  sessionId?: string;
+  updatedAt?: string;
+  lastChannel?: string;
+  lastTo?: string;
+}
+
 interface SessionSummary {
   key: string;
   sessionId: string;
@@ -17,6 +40,13 @@ interface SessionSummary {
   outputTokens: number;
 }
 
+interface SessionMessage {
+  role: string;
+  content: string;
+  timestamp?: string;
+  tokens?: { input?: number; output?: number };
+}
+
 // Helper function to get messages for a specific session
 async function handleSessionMessages(sessionKey: string) {
   try {
@@ -26,7 +56,7 @@ async function handleSessionMessages(sessionKey: string) {
     
     // Try each agent to find the session
     const agentsPath = '/Users/showang/.openclaw/agents/';
-    let sessionInfo: any = null;
+    let sessionInfo: SessionInfo | null = null;
     let actualAgent = targetAgent;
     
     // First try the target agent
@@ -92,20 +122,20 @@ async function handleSessionMessages(sessionKey: string) {
     }
 
     // Read the JSONL file and parse messages
-    const messages: any[] = [];
+    const messages: SessionMessage[] = [];
     const fileContent = readFileSync(sessionFile, 'utf-8');
     const lines = fileContent.split('\n').filter((line: string) => line.trim());
 
     for (const line of lines) {
       try {
-        const entry = JSON.parse(line);
+        const entry: SessionMessageEntry = JSON.parse(line);
         if (entry.message) {
           let content = '';
           if (entry.message.content) {
             if (typeof entry.message.content === 'string') {
               content = entry.message.content;
             } else if (Array.isArray(entry.message.content)) {
-              content = entry.message.content.map((block: any) => block.text || '').join('');
+              content = entry.message.content.map((block: SessionContentBlock) => block.text || '').join('');
             } else if (entry.message.content.text) {
               content = entry.message.content.text;
             }
@@ -159,7 +189,7 @@ export async function GET(request: Request) {
             const { stdout: fileContent } = await execAsync(`cat "${sessionsFile}"`);
             const sessionsData = JSON.parse(fileContent);
             
-            for (const [key, data] of Object.entries(sessionsData) as [string, any][]) {
+            for (const [key, data] of Object.entries(sessionsData) as [string, SessionInfo][]) {
               let messageCount = 0;
               let inputTokens = 0;
               let outputTokens = 0;
@@ -222,7 +252,7 @@ export async function GET(request: Request) {
       const targetAgent = keyParts[1] || 'code';
       const sessionsPathForKey = `/Users/showang/.openclaw/agents/${targetAgent}/sessions/sessions.json`;
       
-      let sessionInfo = null;
+      let sessionInfo: SessionInfo | null = null;
       let actualAgent = targetAgent;
       
       // Try to find the session in the target agent's sessions.json
@@ -288,13 +318,13 @@ export async function GET(request: Request) {
       }
 
       // Read the JSONL file and parse messages
-      const messages: any[] = [];
+      const messages: SessionMessage[] = [];
       const fileContent = readFileSync(sessionFile, 'utf-8');
-      const lines = fileContent.split('\n').filter(line => line.trim());
+      const lines = fileContent.split('\n').filter((line: string) => line.trim());
 
       for (const line of lines) {
         try {
-          const entry = JSON.parse(line);
+          const entry: SessionMessageEntry = JSON.parse(line);
           // Extract messages (both user and assistant)
           if (entry.message) {
             // Handle content as array or string
@@ -305,7 +335,7 @@ export async function GET(request: Request) {
               } else if (Array.isArray(entry.message.content)) {
                 // Content is an array of blocks
                 content = entry.message.content
-                  .map((block: any) => block.text || '')
+                  .map((block: SessionContentBlock) => block.text || '')
                   .join('');
               } else if (entry.message.content.text) {
                 content = entry.message.content.text;
@@ -333,7 +363,15 @@ export async function GET(request: Request) {
     }
 
     // Otherwise, return list of sessions
-    const sessions: SessionSummary[] = Object.entries(sessionsData).map(([key, data]: [string, any]) => {
+    interface RawSessionData {
+      sessionFile?: string;
+      sessionId?: string;
+      updatedAt?: string | number | Date;
+      lastChannel?: string;
+      lastTo?: string;
+    }
+    
+    const sessions: SessionSummary[] = (Object.entries(sessionsData) as [string, RawSessionData][]).map(([key, data]) => {
       // Try to count messages from session file
       let messageCount = 0;
       let inputTokens = 0;
@@ -364,8 +402,8 @@ export async function GET(request: Request) {
 
       return {
         key,
-        sessionId: data.sessionId,
-        updatedAt: new Date(data.updatedAt).toLocaleString('zh-TW'),
+        sessionId: data.sessionId || '',
+        updatedAt: data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-TW') : '未知',
         channel: data.lastChannel || 'unknown',
         lastTo: data.lastTo || 'unknown',
         messageCount,

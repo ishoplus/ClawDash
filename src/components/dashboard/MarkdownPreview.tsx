@@ -56,7 +56,7 @@ export function MarkdownPreview({ filePath, agentId }: MarkdownPreviewProps) {
   }
 
   return (
-    <div className="prose dark:prose-invert max-w-none">
+    <div className="markdown-preview">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );

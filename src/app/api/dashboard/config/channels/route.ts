@@ -4,6 +4,14 @@ import path from 'path';
 
 const CONFIG_PATH = path.join(process.env.HOME || '/Users/showang', '.openclaw', 'openclaw.json');
 
+interface ChannelStatus {
+  configured: boolean;
+  enabled: boolean;
+  accounts?: number;
+  hasToken?: boolean;
+  [key: string]: boolean | number | undefined;
+}
+
 interface OpenClawConfig {
   channels?: {
     telegram?: {
@@ -20,16 +28,22 @@ interface OpenClawConfig {
     whatsapp?: { 
       token?: string; 
       enabled?: boolean;
-      [key: string]: any;
+      [key: string]: unknown;
     };
     discord?: { 
       token?: string; 
       enabled?: boolean;
-      [key: string]: any;
+      [key: string]: unknown;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  [key: string]: any;
+  agents?: Record<string, {
+    model?: string;
+    systemPrompt?: string;
+    enabledSkills?: string[];
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
 }
 
 function getOpenClawConfig(): OpenClawConfig {
@@ -60,7 +74,7 @@ export async function GET() {
     const channels = config.channels || {};
 
     // 返回通道配置狀態
-    const channelStatus: Record<string, any> = {};
+    const channelStatus: Record<string, ChannelStatus> = {};
     
     // Telegram - 檢查 accounts
     if (channels.telegram?.accounts) {
@@ -232,7 +246,7 @@ export async function PATCH(request: Request) {
         }
       }
     } else if (config.channels?.[channel]) {
-      config.channels[channel].enabled = enabled;
+      (config.channels[channel] as { enabled?: boolean }).enabled = enabled;
       if (saveOpenClawConfig(config)) {
         return NextResponse.json({ success: true, message: `${channel} ${enabled ? 'enabled' : 'disabled'}` });
       }

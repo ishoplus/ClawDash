@@ -150,6 +150,10 @@ docker run -p 3000:3000 openclaw-dashboard
 | 💬 Chat | `/chat` | Unified chat and session history |
 | 📋 Logs | `/logs` | Real-time Gateway logs |
 | ⚙️ Settings | `/settings` | Refresh interval, dark mode, env status |
+| 🤖 Agents | `/agents` | Agent list and selection |
+| 📂 Agent Files | `/agents/[agentId]/files` | Per-agent file browser with markdown preview |
+| 💬 Agent Chat | `/agents/[agentId]/chat` | Per-agent chat interface |
+| ⏰ Agent Cron | `/agents/[agentId]/cron` | Per-agent cron management |
 
 ### API Endpoints
 
@@ -173,10 +177,13 @@ docker run -p 3000:3000 openclaw-dashboard
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/dashboard/config` | GET | Overall configuration status |
+| `/api/dashboard/config/global` | GET | Global settings |
 | `/api/dashboard/config/apikey` | GET/POST/DELETE | API Key management |
 | `/api/dashboard/config/channels` | GET/POST/DELETE/PATCH | Messaging channels setup |
 | `/api/dashboard/config/skills` | GET/POST/DELETE | Skills enable/disable |
 | `/api/dashboard/alerts` | GET | Smart alerts and setup progress |
+| `/api/dashboard/agents` | GET | List all available agents |
+| `/api/dashboard/agents/[agentId]` | GET | Get specific agent details |
 
 #### Analytics API
 
@@ -212,7 +219,10 @@ clawdash/
 │   │   │   ├── dashboard/     # Dashboard APIs
 │   │   │   │   ├── route.ts
 │   │   │   │   ├── agents/
+│   │   │   │   │   ├── route.ts
+│   │   │   │   │   └── [agentId]/
 │   │   │   │   ├── analytics/
+│   │   │   │   ├── config/
 │   │   │   │   ├── cron/
 │   │   │   │   ├── file/
 │   │   │   │   ├── files/
@@ -220,43 +230,67 @@ clawdash/
 │   │   │   │   ├── history/
 │   │   │   │   ├── logs/
 │   │   │   │   └── sessions/
-│   │   │   └── health/       # Health check
-│   │   ├── analytics/         # Analytics page
-│   │   ├── chat/             # Chat page
-│   │   ├── cron/             # Cron page
-│   │   ├── files/            # Files page
+│   │   │   └── health/        # Health check
+│   │   ├── agents/            # Agent pages
+│   │   │   └── [agentId]/    # Dynamic agent route
+│   │   │       ├── chat/      # Agent chat page
+│   │   │       ├── cron/      # Agent cron page
+│   │   │       └── files/     # Agent files page
+│   │   ├── analytics/        # Analytics page
+│   │   │   └── page.tsx
+│   │   ├── chat/             # Unified chat page
+│   │   │   └── page.tsx
+│   │   ├── config/           # Configuration page
+│   │   │   └── page.tsx
+│   │   ├── cron/             # Global cron page
+│   │   │   └── page.tsx
+│   │   ├── files/            # Files redirect page
+│   │   │   └── page.tsx
+│   │   ├── history/          # Session history page
+│   │   │   └── page.tsx
 │   │   ├── logs/             # Logs page
+│   │   │   └── page.tsx
 │   │   ├── sessions/          # Sessions page
+│   │   │   └── page.tsx
 │   │   ├── settings/         # Settings page
+│   │   │   └── page.tsx
 │   │   ├── setup/            # Setup wizard
+│   │   │   └── page.tsx
 │   │   ├── layout.tsx        # Root layout
 │   │   └── page.tsx          # Home page
 │   ├── components/
-│   │   ├── dashboard/        # Dashboard components
+│   │   ├── agents/              # Agent-specific components
+│   │   │   └── AgentSelector.tsx
+│   │   ├── dashboard/          # Dashboard components
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── AgentStatus.tsx
 │   │   │   ├── ActiveSessions.tsx
+│   │   │   ├── AlertsBanner.tsx
 │   │   │   ├── CronJobs.tsx
-│   │   │   ├── WorkspaceFileExplorer.tsx
+│   │   │   ├── ErrorEvents.tsx
+│   │   │   ├── GatewayControl.tsx
+│   │   │   ├── LogViewer.tsx
+│   │   │   ├── MarkdownPreview.tsx
+│   │   │   ├── SessionHistory.tsx
 │   │   │   ├── TokenTrends.tsx
 │   │   │   ├── WorkloadStats.tsx
-│   │   │   ├── ErrorEvents.tsx
-│   │   │   ├── LogViewer.tsx
-│   │   │   ├── GatewayControl.tsx
-│   │   │   └── SessionHistory.tsx
-│   │   └── layout/
-│   │       └── Navigation.tsx
-│   └── lib/                  # Shared utilities
+│   │   │   ├── WorkspaceFileExplorer.tsx
+│   │   │   ├── WorkspaceFiles.tsx
+│   │   │   └── EnvironmentCheck.tsx
+│   │   ├── layout/
+│   │   │   ├── Navigation.tsx
+│   │   │   └── LanguageSwitcher.tsx
+│   │   └── shared/             # Shared components
+│   └── lib/                   # Shared utilities
 │       ├── types.ts
 │       ├── parseLsOutput.ts
 │       ├── validatePath.ts
-│       ├── toast.tsx
-│       ├── settings-context.tsx
-│       └── i18n.ts           # Internationalization
+│       ├── toast.tsx           # Toast notifications
+│       ├── settings-context.tsx # App settings context
+│       ├── i18n.ts            # Internationalization
 ├── public/                    # Static assets
 ├── package.json
 ├── next.config.ts
-├── tailwind.config.ts
 └── README.md
 ```
 
@@ -420,16 +454,23 @@ docker run -p 3000:3000 openclaw-dashboard
 | 💬 對話 | `/chat` | 統一對話頁面 |
 | 📋 日誌 | `/logs` | Gateway 日誌 |
 | ⚙️ 設定 | `/settings` | 設定與環境狀態 |
+| 🤖 Agents | `/agents` | Agent 列表與選擇 |
+| 📂 Agent 檔案 | `/agents/[agentId]/files` | 個別 Agent 檔案瀏覽，支援 Markdown 預覽 |
+| 💬 Agent 對話 | `/agents/[agentId]/chat` | 個別 Agent 對話頁面 |
+| ⏰ Agent Cron | `/agents/[agentId]/cron` | 個別 Agent 排程管理 |
 
 ### 配置 API
 
 | 端點 | 方法 | 功能說明 |
 |------|------|----------|
 | `/api/dashboard/config` | GET | 取得整體配置狀態 |
+| `/api/dashboard/config/global` | GET | 全域設定 |
 | `/api/dashboard/config/apikey` | GET/POST/DELETE | API Key 管理 |
 | `/api/dashboard/config/channels` | GET/POST/DELETE/PATCH | 通道配置 |
 | `/api/dashboard/config/skills` | GET/POST/DELETE | 技能啟用/停用 |
 | `/api/dashboard/alerts` | GET | 智能提醒與設定進度 |
+| `/api/dashboard/agents` | GET | 取得所有 Agent 列表 |
+| `/api/dashboard/agents/[agentId]` | GET | 取得特定 Agent 詳細資訊 |
 
 ### 常見問題
 

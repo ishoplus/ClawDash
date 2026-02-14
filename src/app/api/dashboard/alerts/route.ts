@@ -6,6 +6,24 @@ import path from 'path';
 const CONFIG_PATH = path.join(process.env.HOME || '/Users/showang', '.openclaw', 'openclaw.json');
 const OPENCLAW_SKILLS_PATH = '/Users/showang/.nvm/versions/node/v24.13.0/lib/node_modules/openclaw/skills';
 
+interface OpenClawConfig {
+  models?: {
+    providers?: Record<string, { apiKey?: string; defaultModel?: string }>;
+  };
+  channels?: {
+    telegram?: {
+      accounts?: Record<string, { botToken?: string; enabled?: boolean }>;
+      enabled?: boolean;
+    };
+    whatsapp?: { token?: string; enabled?: boolean };
+    discord?: { token?: string; enabled?: boolean };
+    [key: string]: unknown;
+  };
+  skills?: Record<string, unknown>;
+  gateway?: { port?: number; autoStart?: boolean };
+  [key: string]: unknown;
+}
+
 interface Alert {
   id: string;
   type: 'info' | 'warning' | 'error';
@@ -19,15 +37,16 @@ interface Alert {
   dismissible: boolean;
 }
 
-function getOpenClawConfig(): any {
+function getOpenClawConfig(): OpenClawConfig | null {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+      const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
+      return JSON.parse(content);
     }
   } catch (e) {
     console.error('Error reading config:', e);
   }
-  return {};
+  return null;
 }
 
 export async function GET() {

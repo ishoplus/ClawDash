@@ -57,8 +57,19 @@ async function getAvailableAgents(): Promise<{ id: string; name: string; role: s
 }
 
 // Get sessions from all agents by reading their sessions.json files
-async function getSessions(): Promise<any[]> {
-  const allSessions: any[] = [];
+interface RawSessionData {
+  kind?: string;
+  updatedAt: string;
+  sessionId?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  model?: string;
+  contextTokens?: number;
+}
+
+async function getSessions(): Promise<SessionInfo[]> {
+  const allSessions: SessionInfo[] = [];
   const agentsPath = '/Users/showang/.openclaw/agents/';
   
   try {
@@ -71,18 +82,20 @@ async function getSessions(): Promise<any[]> {
         const { stdout: fileContent } = await execAsync(`cat "${sessionsFile}"`);
         const sessionsData = JSON.parse(fileContent);
         
-        for (const [key, data] of Object.entries(sessionsData) as [string, any][]) {
+        for (const [key, data] of Object.entries(sessionsData) as [string, RawSessionData][]) {
           allSessions.push({
             key,
             kind: data.kind || 'direct',
             updatedAt: data.updatedAt,
-            sessionId: data.sessionId,
+            sessionId: data.sessionId || '',
             inputTokens: data.inputTokens || 0,
             outputTokens: data.outputTokens || 0,
             totalTokens: data.totalTokens || 0,
             model: data.model || 'unknown',
             contextTokens: data.contextTokens || 0,
-            agentId: agent
+            agentId: agent,
+            channel: 'direct',
+            displayName: key
           });
         }
       } catch {
@@ -97,7 +110,25 @@ async function getSessions(): Promise<any[]> {
 }
 
 // Get cron jobs from OpenClaw CLI
-async function getCronJobs(): Promise<any[]> {
+interface RawCronJob {
+  id: string;
+  name?: string;
+  enabled?: boolean;
+  schedule?: {
+    kind?: string;
+    expr?: string;
+    tz?: string;
+  };
+  sessionTarget?: string;
+  state?: {
+    nextRunAtMs?: number;
+  };
+  payload?: {
+    model?: string;
+  };
+}
+
+async function getCronJobs(): Promise<RawCronJob[]> {
   try {
     const { stdout } = await execAsync('openclaw cron list --json');
     const result = JSON.parse(stdout);
@@ -143,10 +174,10 @@ export async function GET(request: Request) {
     ]);
     
     // Filter sessions for the selected agent
-    const agentSessions = sessions.filter((s: any) => 
+    const agentSessions = sessions.filter((s) => 
       s.key.startsWith(`agent:${agentId}:`)
     );
-    const selectedSession = agentSessions.find((s: any) => 
+    const selectedSession = agentSessions.find((s) => 
       s.key === `agent:${agentId}:main`
     ) || agentSessions[0];
     
@@ -166,7 +197,7 @@ export async function GET(request: Request) {
         displayName: config.displayName,
       },
       workspace: workspaceFiles,
-      activeSessions: sessions.map((s: any) => {
+      activeSessions: sessions.map((s) => {
         const keyParts = s.key.split(':');
         const sessionAgentId = keyParts[1] || 'unknown';
         return {
@@ -183,7 +214,7 @@ export async function GET(request: Request) {
           totalTokens: s.totalTokens || s.outputTokens || 0,
         };
       }),
-      cronJobs: cronJobs.map((job: any) => ({
+      cronJobs: cronJobs.map((job) => ({
         id: job.id,
         name: job.name || 'Unnamed Job',
         enabled: job.enabled,

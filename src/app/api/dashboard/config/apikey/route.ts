@@ -13,9 +13,9 @@ interface OpenClawConfig {
       accounts?: Record<string, { botToken?: string; enabled?: boolean }>;
       enabled?: boolean;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 function getOpenClawConfig(): OpenClawConfig {
@@ -40,12 +40,17 @@ function saveOpenClawConfig(config: OpenClawConfig): boolean {
   }
 }
 
+interface ProviderStatus {
+  configured: boolean;
+  defaultModel?: string;
+}
+
 export async function GET() {
   try {
     const config = getOpenClawConfig();
     
     // 返回已配置的 provider（不返回 API Key）
-    const providers: Record<string, any> = {};
+    const providers: Record<string, ProviderStatus> = {};
     
     // 檢查 minimax-portal
     if (config.models?.providers?.['minimax-portal']?.apiKey && 

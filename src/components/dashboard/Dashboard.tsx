@@ -19,6 +19,11 @@ interface AgentInfo {
   displayName: string;
 }
 
+interface CronJobSummary {
+  enabled: boolean;
+  name?: string;
+}
+
 export function Dashboard() {
   const { settings } = useSettings();
   const { showToast } = useToast();
@@ -105,87 +110,165 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6" key={refreshKey}>
-      {/* 簡易模式 - 歡迎區域 */}
+      {/* 簡易模式 - 重新設計 */}
       {!showAdvanced && (
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">
-                👋 嗨，歡迎使用 AI 助手
-              </h1>
-              <p className="opacity-90">
-                你的 AI 助手「{currentAgent?.displayName || 'Code'}」目前 {data?.agent ? '✅ 正常運行' : '⚠️ 需要設定'}
+        <>
+          {/* 頂部：Agent 選擇區域 */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-800 rounded-2xl p-6 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <p className="text-sm opacity-75">AI 助手</p>
+                  <h1 className="text-2xl font-bold">
+                    {currentAgent?.displayName || 'Code'} 
+                    <span className="ml-2 text-sm opacity-75">
+                      ({availableAgents.length} 個)
+                    </span>
+                  </h1>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-sm ${
+                  data?.agent ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'
+                }`}>
+                  {data?.agent ? '✅ 運行中' : '⚠️ 需要設定'}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAdvanced(true)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors"
+              >
+                🔧 進階模式
+              </button>
+            </div>
+
+            {/* Agent 選擇器 */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {availableAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => handleAgentChange(agent.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                    selectedAgent === agent.id
+                      ? 'bg-white text-slate-800'
+                      : 'bg-white/10 hover:bg-white/20 text-white'
+                  }`}
+                >
+                  {agent.displayName}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 狀態小卡片網格 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Agent 卡片 */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">🤖</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Agent</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white truncate">
+                {data?.agent?.model || '未設定'}
               </p>
             </div>
-            <button
-              onClick={() => setShowAdvanced(true)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors"
-            >
-              🔧 進階設定
-            </button>
-          </div>
 
-          {/* 三大功能入口 */}
-          <div className="grid grid-cols-3 gap-4">
-            <Link href="/chat" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
-              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">💬</div>
-              <h3 className="font-medium mb-1">與 AI 對話</h3>
-              <p className="text-sm opacity-75">發送訊息給你的 AI 助手</p>
-            </Link>
-            <Link href="/history" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
-              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">📊</div>
-              <h3 className="font-medium mb-1">對話紀錄</h3>
-              <p className="text-sm opacity-75">查看過去的對話內容</p>
-            </Link>
-            <Link href="/config" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
-              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">⚙️</div>
-              <h3 className="font-medium mb-1">功能設定</h3>
-              <p className="text-sm opacity-75">調整 AI 助手的功能</p>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* 簡易模式 - 狀態卡片 */}
-      {!showAdvanced && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🤖</span>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">AI 模型</p>
-                <p className="font-medium text-gray-900 dark:text-white">{data?.agent.model || '未設定'}</p>
+            {/* 會話卡片 */}
+            <Link href="/sessions" className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-blue-300 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">💬</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">對話中</span>
               </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {data?.activeSessions.length} 個會話
+              </p>
+            </Link>
+
+            {/* Token 卡片 */}
+            <Link href="/analytics" className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-green-300 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">📊</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Token</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {data?.agent?.tokenUsage.total.toLocaleString() || 0}
+              </p>
+            </Link>
+
+            {/* 檔案卡片 */}
+            <Link href="/files" className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-orange-300 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">📁</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">工作檔案</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {data?.workspace.length} 個
+              </p>
+            </Link>
+
+            {/* Cron 卡片 */}
+            <Link href="/cron" className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-purple-300 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">⏰</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">排程任務</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {data?.cronJobs.filter((j: CronJobSummary) => j.enabled).length} / {data?.cronJobs.length} 運行
+              </p>
+            </Link>
+
+            {/* Gateway 卡片 */}
+            <Link href="/logs" className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-red-300 transition-colors">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">🦞</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Gateway</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                ✅ 運行中
+              </p>
+            </Link>
+
+            {/* 頻道卡片 */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">📡</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">頻道</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white truncate">
+                {data?.agent?.channel || '-'}
+              </p>
+            </div>
+
+            {/* Context 卡片 */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">📝</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Context</span>
+              </div>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {data?.agent?.context || '-'}
+              </p>
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
+
+          {/* 快捷操作區域 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Link href="/chat" className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl p-4 transition-colors border border-blue-100 dark:border-blue-800">
               <span className="text-2xl">💬</span>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">對話中</p>
-                <p className="font-medium text-gray-900 dark:text-white">{data?.activeSessions.length} 個</p>
-              </div>
-            </div>
+              <span className="font-medium text-blue-700 dark:text-blue-300">新對話</span>
+            </Link>
+            <Link href="/history" className="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-xl p-4 transition-colors border border-green-100 dark:border-green-800">
+              <span className="text-2xl">📊</span>
+              <span className="font-medium text-green-700 dark:text-green-300">對話紀錄</span>
+            </Link>
+            <Link href="/config" className="flex items-center gap-3 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-xl p-4 transition-colors border border-purple-100 dark:border-purple-800">
+              <span className="text-2xl">⚙️</span>
+              <span className="font-medium text-purple-700 dark:text-purple-300">功能設定</span>
+            </Link>
+            <Link href="/settings" className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl p-4 transition-colors border border-gray-200 dark:border-gray-700">
+              <span className="text-2xl">🎨</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">應用設定</span>
+            </Link>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">📁</span>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">工作檔案</p>
-                <p className="font-medium text-gray-900 dark:text-white">{data?.workspace.length} 個</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">⏰</span>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">排程任務</p>
-                <p className="font-medium text-gray-900 dark:text-white">{data?.cronJobs.filter((j: any) => j.enabled).length} 個運行</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        </>
       )}
 
       {/* 進階模式 - 返回按鈕 */}

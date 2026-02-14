@@ -45,11 +45,6 @@ export function GatewayControl() {
 
   // 顯示確認對話框
   const confirmAction = (action: string) => {
-    const messages: Record<string, { title: string; desc: string }> = {
-      restart: { title: '🔄 確認重啟', desc: '重啟運行服務可能會中斷正在進行的對話。確定要重啟嗎？' },
-      start: { title: '▶️ 確認啟動', desc: '確定要啟動運行服務嗎？' },
-      stop: { title: '⏹️ 確認停止', desc: '停止運行服務後，所有 AI 功能將暫時無法使用。確定要停止嗎？' }
-    };
     setPendingAction(action);
   };
 

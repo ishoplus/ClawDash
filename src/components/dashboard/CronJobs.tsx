@@ -5,9 +5,9 @@ import { useI18n } from '@/lib/i18n-context';
 interface CronJob {
   id: string;
   name: string;
-  enabled: boolean;
-  schedule: {
-    kind: string;
+  enabled?: boolean;
+  schedule?: {
+    kind?: string;
     expr?: string;
     tz?: string;
   };
@@ -102,7 +102,7 @@ export function CronJobs({ jobs, currentAgent }: CronJobsProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleJob(job.id, job.enabled)}
+                    onClick={() => toggleJob(job.id, job.enabled ?? false)}
                     disabled={toggling === job.id}
                     className={`px-3 py-2 text-sm min-w-[70px] rounded-lg transition-colors disabled:opacity-50 touch-manipulation ${
                       job.enabled
@@ -121,10 +121,10 @@ export function CronJobs({ jobs, currentAgent }: CronJobsProps) {
                     {t('schedule')}:
                   </span>
                   <span className="font-mono text-gray-900 dark:text-white">
-                    {job.schedule.expr}
+                    {job.schedule?.expr}
                   </span>
                 </div>
-                {job.schedule.tz && (
+                {job.schedule?.tz && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">
                       {t('timezone')}:

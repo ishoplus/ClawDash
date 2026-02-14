@@ -31,7 +31,20 @@ const SKILL_RISK_DEFINITIONS: Record<string, { level: 'high' | 'medium' | 'low';
   'gemini': { level: 'low', reason: 'Gemini API 查詢' },
 };
 
-function parseSkillYaml(content: string): { name: string; description: string; metadata: any } | null {
+interface SkillMetadata {
+  openclaw?: {
+    emoji?: string;
+  };
+  [key: string]: unknown;
+}
+
+interface ParsedSkill {
+  name: string;
+  description: string;
+  metadata: SkillMetadata;
+}
+
+function parseSkillYaml(content: string): ParsedSkill | null {
   try {
     // 解析 YAML frontmatter
     const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -115,10 +128,20 @@ function saveEnabledSkills(skills: string[]): boolean {
   }
 }
 
+interface Skill {
+  name: string;
+  description: string;
+  emoji?: string;
+  enabled: boolean;
+  installed?: boolean;
+  riskLevel?: 'high' | 'medium' | 'low';
+  riskReason?: string;
+}
+
 export async function GET() {
   try {
     const enabledSkills = getEnabledSkills();
-    const allSkills: any[] = [];
+    const allSkills: Skill[] = [];
 
     // 讀取所有已安裝的技能
     try {

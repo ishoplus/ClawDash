@@ -6,7 +6,7 @@ interface AgentConfig {
   model?: string;
   systemPrompt?: string;
   enabledSkills?: string[];
-  customSettings?: Record<string, any>;
+  customSettings?: Record<string, unknown>;
 }
 
 const WORKSPACE_PATH = path.join(process.env.HOME || '/Users/showang', '.openclaw', 'workspaces');

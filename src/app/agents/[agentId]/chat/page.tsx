@@ -57,14 +57,24 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
   };
 
   // 載入會話訊息
-  async function fetchMessages(key: string) {
+  interface Message {
+  id: string;
+  role: string;
+  content: string;
+  timestamp: string;
+  tokens?: {
+    input?: number;
+    output?: number;
+  };
+}
+
+async function fetchMessages(key: string) {
     try {
       const res = await fetch(`/api/dashboard/history?key=${encodeURIComponent(key)}`);
       if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
       if (data.messages) {
-        // 使用 timestamp + index 確保唯一性
-        setMessages(data.messages.map((m: any, idx: number) => ({
+        setMessages(data.messages.map((m: { timestamp?: string; role?: string; content?: string; tokens?: { input?: number; output?: number } }, idx: number) => ({
           id: `${m.timestamp || Date.now()}-${idx}`,
           role: m.role || 'user',
           content: m.content || '[無內容]',
@@ -97,7 +107,7 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
     console.log('Connecting to WebSocket:', wsUrl);
     
     let ws: WebSocket;
-    let connectionTimeout: NodeJS.Timeout;
+    let connectionTimeout: NodeJS.Timeout | undefined;
 
     try {
       ws = new WebSocket(wsUrl);
@@ -141,17 +151,17 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
       
       ws.onclose = (event) => {
         console.log('WebSocket closed:', event.code, event.reason);
-        clearTimeout(connectionTimeout);
+        if (connectionTimeout) clearTimeout(connectionTimeout);
         setConnected(false);
       };
     } catch (error) {
       console.error('Failed to create WebSocket:', error);
-      clearTimeout(connectionTimeout);
+      if (connectionTimeout) clearTimeout(connectionTimeout);
       setConnected(false);
     }
     
     return () => {
-      clearTimeout(connectionTimeout);
+      if (connectionTimeout) clearTimeout(connectionTimeout);
       if (wsRef.current) {
         try {
           wsRef.current.close();

@@ -17,7 +17,7 @@ interface OpenClawConfig {
     whatsapp?: { token?: string; enabled?: boolean };
     discord?: { token?: string; enabled?: boolean };
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 function getOpenClawConfig(): OpenClawConfig | null {
@@ -158,7 +158,7 @@ export async function GET() {
       // 使用絕對路徑避免 PATH 問題
       const stdout = execSync('/opt/homebrew/bin/openclaw gateway status', { encoding: 'utf-8', timeout: 5000 });
       const runningMatch = stdout.match(/runtime:\s+(\w+)/i);
-      configStatus.gateway.running = runningMatch && runningMatch[1] === 'running';
+      configStatus.gateway.running = !!(runningMatch && runningMatch[1] === 'running');
     } catch (e) {
       configStatus.gateway.running = false;
     }

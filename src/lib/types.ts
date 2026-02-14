@@ -15,14 +15,17 @@ export interface SessionInfo {
   model: string;
   contextTokens: number;
   totalTokens: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  sessionId?: string;
 }
 
 export interface CronJob {
   id: string;
   name: string;
-  enabled: boolean;
-  schedule: {
-    kind: string;
+  enabled?: boolean;
+  schedule?: {
+    kind?: string;
     expr?: string;
     tz?: string;
   };
