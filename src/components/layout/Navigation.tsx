@@ -11,15 +11,22 @@ export function Navigation() {
   const pathname = usePathname();
   const { t, locale } = useI18n();
 
-  const navItems = [
+  // 檢查是否在 Agent 專屬頁面
+  const isAgentPage = pathname.startsWith('/agents/');
+
+  // 全局頁面（無需選擇 Agent）
+  const globalNavItems = [
     { key: 'dashboard', href: '/', icon: '📊' },
     { key: 'config', href: '/config', icon: '🔧' },
     { key: 'analytics', href: '/analytics', icon: '📈' },
-    { key: 'files', href: '/files', icon: '📁' },
-    { key: 'cron', href: '/cron', icon: '⏰' },
-    { key: 'chat', href: '/chat', icon: '💬' },
-    { key: 'logs', href: '/logs', icon: '📋' },
-    { key: 'settings', href: '/settings', icon: '⚙️' },
+  ];
+
+  // Agent 專屬頁面
+  const agentNavItems = [
+    { key: 'chat', href: '/agents/code/chat', icon: '💬' },
+    { key: 'history', href: '/agents/code/history', icon: '📊' },
+    { key: 'files', href: '/agents/code/files', icon: '📁' },
+    { key: 'cron', href: '/agents/code/cron', icon: '⏰' },
   ];
 
   const dateFormat = locale === 'zh-TW' ? 'zh-TW' : 'en-US';
@@ -36,25 +43,52 @@ export function Navigation() {
             </span>
           </Link>
 
-          {/* Navigation Links */}
-          <div className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{t(item.key)}</span>
-                </Link>
-              );
-            })}
+          {/* Navigation Links - 分為全局與 Agent 專屬 */}
+          <div className="flex items-center gap-4">
+            {/* 全局頁面 */}
+            <div className="flex items-center gap-1">
+              {globalNavItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{t(item.key)}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* 分隔線 */}
+            <div className="w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
+
+            {/* Agent 專屬頁面 */}
+            <div className="flex items-center gap-1">
+              {agentNavItems.map((item) => {
+                const isActive = pathname.startsWith(item.href.split('/').slice(0, 3).join('/'));
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{t(item.key)}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {/* Right side */}
