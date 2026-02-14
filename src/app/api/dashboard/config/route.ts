@@ -155,8 +155,10 @@ export async function GET() {
 
     // 檢測 Gateway 狀態
     try {
-      execSync('pgrep -f "openclaw.*gateway" > /dev/null 2>&1', { encoding: 'utf-8', timeout: 2000 });
-      configStatus.gateway.running = true;
+      // 使用絕對路徑避免 PATH 問題
+      const stdout = execSync('/opt/homebrew/bin/openclaw gateway status', { encoding: 'utf-8', timeout: 5000 });
+      const runningMatch = stdout.match(/runtime:\s+(\w+)/i);
+      configStatus.gateway.running = runningMatch && runningMatch[1] === 'running';
     } catch (e) {
       configStatus.gateway.running = false;
     }
