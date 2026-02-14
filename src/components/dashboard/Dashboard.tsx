@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { AgentStatus } from './AgentStatus';
 import { WorkspaceFileExplorer } from './WorkspaceFileExplorer';
 import { ActiveSessions } from './ActiveSessions';
@@ -26,7 +27,8 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string>('code');
   const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0); // Force refresh when agent changes
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showAdvanced, setShowAdvanced] = useState(false); // 簡易/進階模式
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -44,9 +46,7 @@ export function Dashboard() {
     try {
       setLoading(true);
       const response = await fetch(`/api/dashboard?agent=${selectedAgent}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
+      if (!response.ok) throw new Error('Failed to fetch dashboard data');
       const result = await response.json();
       setData(result);
       setError(null);
@@ -59,36 +59,29 @@ export function Dashboard() {
     }
   }, [selectedAgent, showToast]);
 
-  // Fetch agents on mount
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
 
-  // Fetch data when agent changes
   useEffect(() => {
     setLoading(true);
     fetchData();
   }, [selectedAgent, fetchData]);
 
-  // Refresh interval - use settings or default to 30s
   useEffect(() => {
     const intervalMs = (settings.refreshInterval || 30) * 1000;
-    if (intervalMs === 0) return; // Disabled
-    
-    const interval = setInterval(() => {
-      fetchData();
-    }, intervalMs);
+    if (intervalMs === 0) return;
+    const interval = setInterval(() => fetchData(), intervalMs);
     return () => clearInterval(interval);
   }, [fetchData, settings.refreshInterval]);
 
   const handleAgentChange = (newAgent: string) => {
     if (newAgent !== selectedAgent) {
       setSelectedAgent(newAgent);
-      setRefreshKey(prev => prev + 1); // Force refresh
+      setRefreshKey(prev => prev + 1);
     }
   };
 
-  // Show loading only on first load
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -106,84 +99,164 @@ export function Dashboard() {
     );
   }
 
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
+
+  const currentAgent = availableAgents.find(a => a.id === selectedAgent);
 
   return (
     <div className="space-y-6" key={refreshKey}>
-      {/* Header with Agent Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            📊 OpenClaw Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            实时监控 Agent 状态、工作目录和任务排程
-          </p>
-        </div>
+      {/* 簡易模式 - 歡迎區域 */}
+      {!showAdvanced && (
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">
+                👋 嗨，歡迎使用 AI 助手
+              </h1>
+              <p className="opacity-90">
+                你的 AI 助手「{currentAgent?.displayName || 'Code'}」目前 {data?.agent ? '✅ 正常運行' : '⚠️ 需要設定'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAdvanced(true)}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors"
+            >
+              🔧 進階設定
+            </button>
+          </div>
 
-        {/* Agent Selector */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Agent:
-          </label>
-          <select
-            value={selectedAgent}
-            onChange={(e) => handleAgentChange(e.target.value)}
-            className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {availableAgents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Loading indicator for agent switch */}
-      {loading && data && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-blue-700 dark:text-blue-300 text-sm">
-          🔄 正在切换到 {availableAgents.find(a => a.id === selectedAgent)?.displayName}...
+          {/* 三大功能入口 */}
+          <div className="grid grid-cols-3 gap-4">
+            <Link href="/chat" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">💬</div>
+              <h3 className="font-medium mb-1">與 AI 對話</h3>
+              <p className="text-sm opacity-75">發送訊息給你的 AI 助手</p>
+            </Link>
+            <Link href="/history" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">📊</div>
+              <h3 className="font-medium mb-1">對話紀錄</h3>
+              <p className="text-sm opacity-75">查看過去的對話內容</p>
+            </Link>
+            <Link href="/config" className="bg-white/10 hover:bg-white/20 rounded-xl p-4 transition-colors group cursor-pointer">
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">⚙️</div>
+              <h3 className="font-medium mb-1">功能設定</h3>
+              <p className="text-sm opacity-75">調整 AI 助手的功能</p>
+            </Link>
+          </div>
         </div>
       )}
 
-      {/* Alerts Banner */}
-      <AlertsBanner />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Agent Status */}
-        <div className="lg:col-span-1">
-          <AgentStatus agent={data.agent} />
+      {/* 簡易模式 - 狀態卡片 */}
+      {!showAdvanced && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🤖</span>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">AI 模型</p>
+                <p className="font-medium text-gray-900 dark:text-white">{data?.agent.model || '未設定'}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💬</span>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">對話中</p>
+                <p className="font-medium text-gray-900 dark:text-white">{data?.activeSessions.length} 個</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📁</span>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">工作檔案</p>
+                <p className="font-medium text-gray-900 dark:text-white">{data?.workspace.length} 個</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏰</span>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">排程任務</p>
+                <p className="font-medium text-gray-900 dark:text-white">{data?.cronJobs.filter((j: any) => j.enabled).length} 個運行</p>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Right column - Active Sessions */}
-        <div className="lg:col-span-2">
-          <ActiveSessions sessions={data.activeSessions} onRefresh={fetchData} />
+      {/* 進階模式 - 返回按鈕 */}
+      {showAdvanced && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowAdvanced(false)}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          >
+            ← 返回簡易模式
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">進階監控面板</span>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Workspace File Explorer */}
-        <WorkspaceFileExplorer 
-          files={data.workspace} 
-          agentId={selectedAgent}
-          key={`workspace-${selectedAgent}`}
-        />
+      {/* 進階模式 - 完整監控面板 */}
+      {showAdvanced && (
+        <>
+          {/* Agent Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-gray-800 rounded-xl p-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                📊 監控面板
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                實時監控 AI 助手狀態與任務
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                AI 助手：
+              </label>
+              <select
+                value={selectedAgent}
+                onChange={(e) => handleAgentChange(e.target.value)}
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+              >
+                {availableAgents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        {/* Cron Jobs */}
-        <CronJobs jobs={data.cronJobs} currentAgent={selectedAgent} />
-      </div>
+          {/* Alerts Banner */}
+          <AlertsBanner />
 
-      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-        自动刷新：{settings.refreshInterval === 0 ? '已关闭' : `${settings.refreshInterval}秒`} | 最后更新：{new Date().toLocaleString('zh-TW')}
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <AgentStatus agent={data?.agent} />
+            </div>
+            <div className="lg:col-span-2">
+              <ActiveSessions sessions={data?.activeSessions} onRefresh={fetchData} />
+            </div>
+          </div>
 
-      {/* Gateway Control */}
-      <div className="mt-6">
-        <GatewayControl />
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <WorkspaceFileExplorer files={data?.workspace} agentId={selectedAgent} />
+            <CronJobs jobs={data?.cronJobs} currentAgent={selectedAgent} />
+          </div>
+
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+            自動刷新：{settings.refreshInterval === 0 ? '已關閉' : `${settings.refreshInterval}秒`} | 
+            最後更新：{new Date().toLocaleString('zh-TW')}
+          </div>
+
+          <GatewayControl />
+        </>
+      )}
     </div>
   );
 }
