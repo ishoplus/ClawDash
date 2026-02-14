@@ -39,8 +39,10 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
     async function fetchSessions() {
       try {
         const res = await fetch(`/api/dashboard/history?agent=${agentId}`);
-        const data = await res.json();
-        setSessions(data.sessions || []);
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(data.sessions || []);
+        }
       } catch (e) {
         console.error('Failed to fetch sessions:', e);
       }
@@ -58,57 +60,103 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
   async function fetchMessages(key: string) {
     try {
       const res = await fetch(`/api/dashboard/history?key=${encodeURIComponent(key)}`);
+      if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
       if (data.messages) {
         setMessages(data.messages.map((m: any, idx: number) => ({
           id: m.timestamp?.toString() || idx.toString(),
-          role: m.role,
-          content: m.content,
+          role: m.role || 'user',
+          content: m.content || '[無內容]',
           timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString(),
           tokens: m.tokens
         })));
+      } else {
+        setMessages([]);
       }
     } catch (e) {
       console.error('Failed to fetch messages:', e);
+      setMessages([]);
     }
   }
 
-  // 連接 WebSocket
+  // 連接 WebSocket - 使用更好的錯誤處理
   useEffect(() => {
     if (!sessionKey) return;
 
     // 關閉舊連接
     if (wsRef.current) {
-      wsRef.current.close();
+      try {
+        wsRef.current.close();
+      } catch (e) {
+        // Ignore close errors
+      }
     }
 
-    const ws = new WebSocket(`ws://localhost:18789/ws/${agentId}`);
-    wsRef.current = ws;
+    const wsUrl = `ws://localhost:18789/ws/${agentId}`;
+    console.log('Connecting to WebSocket:', wsUrl);
     
-    ws.onopen = () => {
-      setConnected(true);
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'message') {
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: data.content,
-            timestamp: new Date().toISOString()
-          }]);
+    let ws: WebSocket;
+    let connectionTimeout: NodeJS.Timeout;
+
+    try {
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      // 連接超時 (5秒)
+      connectionTimeout = setTimeout(() => {
+        console.log('WebSocket connection timeout');
+        ws.close();
+        setConnected(false);
+      }, 5000);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        clearTimeout(connectionTimeout);
+        setConnected(true);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'message') {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: data.content || '[回覆]',
+              timestamp: new Date().toISOString()
+            }]);
+          }
+        } catch (e) {
+          console.error('WS message parse error:', e);
         }
-      } catch (e) {
-        console.error('WS message parse error:', e);
-      }
-    };
-    
-    ws.onclose = () => setConnected(false);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
+        setConnected(false);
+      };
+      
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        clearTimeout(connectionTimeout);
+        setConnected(false);
+      };
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error);
+      clearTimeout(connectionTimeout);
+      setConnected(false);
+    }
     
     return () => {
-      ws.close();
+      clearTimeout(connectionTimeout);
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch (e) {
+          // Ignore
+        }
+      }
     };
   }, [agentId, sessionKey]);
 
@@ -130,10 +178,11 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: input.trim(),
       timestamp: new Date().toISOString()
     };
     
+    // 樂觀更新：先顯示使用者訊息
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setSending(true);
@@ -142,35 +191,42 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
       const response = await fetch('/api/dashboard/sessions/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionKey, message: input })
+        body: JSON.stringify({ sessionKey, message: input.trim() })
       });
       
-      if (response.ok) {
-        // 訊息已發送，WebSocket 會收到回覆
-      } else {
-        const error = await response.json();
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Send error:', error);
+        // 發送失敗時移除訊息
         setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        alert(`發送失敗: ${error.error || '未知錯誤'}`);
       }
+      // 如果成功，WebSocket 會收到回覆並更新訊息列表
     } catch (error) {
       console.error('Send error:', error);
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      alert('發送失敗，請稍後重試');
     } finally {
       setSending(false);
     }
   };
 
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    if (diff < 86400000) {
-      return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-    } else if (diff < 172800000) {
-      return '昨天';
-    } else {
-      return date.toLocaleDateString('zh-TW');
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return '--:--';
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      
+      if (diff < 86400000) {
+        return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+      } else if (diff < 172800000) {
+        return '昨天';
+      } else {
+        return date.toLocaleDateString('zh-TW');
+      }
+    } catch {
+      return '--:--';
     }
   };
 
@@ -232,7 +288,7 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
                   <span className="text-4xl mb-4">💬</span>
-                  <p>開始與 AI 助手對話吧！</p>
+                  <p>{sessionKey ? '此會話尚無訊息' : '選擇一個會話開始對話'}</p>
                 </div>
               ) : (
                 messages.map((msg) => (
