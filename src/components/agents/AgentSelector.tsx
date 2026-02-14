@@ -23,13 +23,13 @@ export function AgentSelector({ variant = 'dropdown', showAllOption = false, onS
   const [selectedAgent, setSelectedAgent] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
-  // 從路徑提取當前 agent
+  // 從路徑提取當前 agent - 使用 useEffect 監聽 pathname 變化
   useEffect(() => {
     const match = pathname.match(/^\/agents\/([^\/]+)/);
-    if (match) {
+    if (match && match[1] !== selectedAgent) {
       setSelectedAgent(match[1]);
     }
-  }, [pathname]);
+  }, [pathname, selectedAgent]);
 
   // 取得 agent 清單
   useEffect(() => {
@@ -38,8 +38,14 @@ export function AgentSelector({ variant = 'dropdown', showAllOption = false, onS
         const res = await fetch('/api/dashboard/agents');
         const data = await res.json();
         setAgents(data);
+        // 如果還沒有選中 agent，設置第一個
         if (!selectedAgent && data.length > 0) {
-          setSelectedAgent(data[0].id);
+          const urlMatch = pathname.match(/^\/agents\/([^\/]+)/);
+          if (urlMatch) {
+            setSelectedAgent(urlMatch[1]);
+          } else {
+            setSelectedAgent(data[0].id);
+          }
         }
       } catch (e) {
         console.error('Failed to fetch agents:', e);
@@ -48,7 +54,7 @@ export function AgentSelector({ variant = 'dropdown', showAllOption = false, onS
       }
     }
     fetchAgents();
-  }, []);
+  }, [pathname]);
 
   // 選擇 agent - 保持當前頁面類型
   const handleSelect = (agentId: string) => {
@@ -61,7 +67,8 @@ export function AgentSelector({ variant = 'dropdown', showAllOption = false, onS
     }
 
     // 從當前路徑提取頁面類型 (chat, history, files, cron)
-    const pageMatch = pathname.match(/\/agents\/[^\/]+\/([a-z]+)$/);
+    const currentPathname = pathname || '/agents/code/chat';
+    const pageMatch = currentPathname.match(/\/agents\/[^\/]+\/([a-z]+)$/);
     const pageType = pageMatch ? pageMatch[1] : 'chat';
     
     router.push(`/agents/${agentId}/${pageType}`);
