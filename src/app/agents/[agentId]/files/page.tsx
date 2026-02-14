@@ -17,7 +17,6 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
   const { agentId } = use(params);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPath, setCurrentPath] = useState('/');
 
   useEffect(() => {
     async function fetchFiles() {
@@ -45,15 +44,7 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
       }
     }
     fetchFiles();
-  }, [agentId]);
-
-  const navigateToFolder = (folderName: string) => {
-    const newPath = currentPath === '/' 
-      ? `/${folderName}` 
-      : `${currentPath}/${folderName}`.replace(/\/+/g, '/');
-    setCurrentPath(newPath);
-    // 這裡應該重新獲取該目錄的內容
-  };
+  }, [agentId]); // 移除 currentPath，只依賴 agentId
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -67,7 +58,7 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
               📁 {agentId} 工作檔案
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              目前路徑: {currentPath}
+              根目錄
             </p>
           </div>
           <AgentSelector variant="dropdown" />
@@ -77,27 +68,6 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
           {/* 工具列 */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPath('/')}
-                className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-              >
-                🏠 根目錄
-              </button>
-              <button
-                onClick={() => {
-                  const parts = currentPath.split('/').filter(Boolean);
-                  if (parts.length > 0) {
-                    parts.pop();
-                    setCurrentPath('/' + parts.join('/'));
-                  }
-                }}
-                disabled={currentPath === '/'}
-                className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
-              >
-                ← 上一層
-              </button>
-            </div>
             <span className="text-sm text-gray-500 dark:text-gray-400">
               {files.length} 個項目
             </span>
@@ -120,11 +90,6 @@ export default function AgentFilesPage({ params }: { params: Promise<{ agentId: 
                   <div
                     key={file.id}
                     className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                    onClick={() => {
-                      if (file.type === 'directory') {
-                        navigateToFolder(file.name);
-                      }
-                    }}
                   >
                     <span className="text-2xl mr-4">
                       {file.type === 'directory' ? '📁' : '📄'}
