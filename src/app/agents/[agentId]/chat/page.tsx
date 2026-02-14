@@ -63,8 +63,9 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
       if (!res.ok) throw new Error('Failed to fetch messages');
       const data = await res.json();
       if (data.messages) {
+        // 使用 timestamp + index 確保唯一性
         setMessages(data.messages.map((m: any, idx: number) => ({
-          id: m.timestamp?.toString() || idx.toString(),
+          id: `${m.timestamp || Date.now()}-${idx}`,
           role: m.role || 'user',
           content: m.content || '[無內容]',
           timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString(),
@@ -119,8 +120,9 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'message') {
+            const wsId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             setMessages(prev => [...prev, {
-              id: Date.now().toString(),
+              id: wsId,
               role: 'assistant',
               content: data.content || '[回覆]',
               timestamp: new Date().toISOString()
@@ -175,8 +177,11 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
   const sendMessage = async () => {
     if (!input.trim() || sending || !sessionKey) return;
     
+    // 使用 timestamp + random 確保唯一性
+    const msgId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: msgId,
       role: 'user',
       content: input.trim(),
       timestamp: new Date().toISOString()
@@ -198,13 +203,13 @@ export default function AgentChatPage({ params }: { params: Promise<{ agentId: s
         const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Send error:', error);
         // 發送失敗時移除訊息
-        setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        setMessages(prev => prev.filter(m => m.id !== msgId));
         alert(`發送失敗: ${error.error || '未知錯誤'}`);
       }
       // 如果成功，WebSocket 會收到回覆並更新訊息列表
     } catch (error) {
       console.error('Send error:', error);
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      setMessages(prev => prev.filter(m => m.id !== msgId));
       alert('發送失敗，請稍後重試');
     } finally {
       setSending(false);
