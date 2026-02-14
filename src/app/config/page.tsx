@@ -280,7 +280,64 @@ export default function ConfigPage() {
           </p>
         </div>
 
-        {/* Progress indicator */}
+        {/* 配置分離提示 */}
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">ℹ️</span>
+            <div>
+              <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-1">配置分離說明</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <strong>統一配置</strong>（API 金鑰、通知頻道）適用於所有 Agent。<br/>
+                <strong>Agent 專屬</strong>（模型選擇、技能模組、排程任務）可針對每個 Agent 獨立設定。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 統一配置 vs Agent 專屬配置 */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border-2 border-transparent hover:border-blue-300 transition-colors cursor-pointer" onClick={() => setActiveTab('apikey')}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">🌐</span>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">統一配置</h3>
+                <p className="text-xs text-gray-500">所有 Agent 共享</p>
+              </div>
+            </div>
+            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+              <li className="flex items-center gap-2">
+                <span>{configStatus?.apiKey.configured ? '✅' : '🔑'}</span>
+                <span>API 金鑰 {configStatus?.apiKey.configured ? '已設定' : '待設定'}</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span>{(configStatus?.channels.telegram.configured || configStatus?.channels.whatsapp.configured || configStatus?.channels.discord.configured) ? '✅' : '📱'}</span>
+                <span>通知頻道 {Object.values(configStatus?.channels || {}).filter(c => c.configured).length > 0 ? '已設定' : '待設定'}</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border-2 border-transparent hover:border-purple-300 transition-colors cursor-pointer" onClick={() => setActiveTab('skills')}>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">🤖</span>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Agent 專屬</h3>
+                <p className="text-xs text-gray-500">可獨立設定</p>
+              </div>
+            </div>
+            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+              <li className="flex items-center gap-2">
+                <span>🤖</span>
+                <span>選擇使用的模型</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span>🔧</span>
+                <span>功能模組 {configStatus?.skills.enabled || 0} 個已啟用</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 原有進度指示器 */}
         <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">{t('quickStart')}</span>
@@ -716,6 +773,23 @@ export default function ConfigPage() {
         {/* Skills Tab */}
         {activeTab === 'skills' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            {/* Agent 專屬設定區塊 */}
+            <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-2xl">🤖</span>
+                <h3 className="font-bold text-purple-900 dark:text-purple-100">Agent 專屬設定</h3>
+              </div>
+              <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
+                功能模組可以針對每個 Agent 獨立啟用或停用。選擇要配置的 Agent：
+              </p>
+              <select
+                className="w-full px-4 py-2 bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded-lg text-gray-900 dark:text-white"
+              >
+                <option value="code">🤖 Code Agent</option>
+                <option value="rich">🤖 Rich Agent</option>
+              </select>
+            </div>
+
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                 🔧 {t('skills')}
