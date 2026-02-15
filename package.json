@@ -2,13 +2,23 @@
   "name": "clawdash",
   "version": "1.0.0",
   "description": "A real-time dashboard for monitoring OpenClaw Agent status",
-  "private": true,
+  "bin": {
+    "clawdash": "./bin/cli.js"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
+  "keywords": ["openclaw", "dashboard", "ai", "agent", "monitoring"],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ishoplus/ClawDash.git"
+  },
+  "homepage": "https://github.com/ishoplus/ClawDash",
   "dependencies": {
     "next": "16.1.6",
     "react": "19.2.3",
